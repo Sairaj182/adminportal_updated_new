@@ -20,10 +20,10 @@ import {
     Visibility as VisibilityIcon
 } from '@mui/icons-material'
 import { useSession } from 'next-auth/react'
-import { AddForm } from './institute-lecture-props/add-form'
-import { EditForm } from './institute-lecture-props/edit-form'
+import { AddForm } from './phd-seminar-props/add-form'
+import { EditForm } from './phd-seminar-props/edit-form'
+import { PhDSeminarPreview } from './phd-seminar-props/phd-seminar-preview'
 import { ConfirmDelete } from '../events-props/confirm-delete'
-import ViewDetailsModal from '../view-details-modal'
 
 const formatDate = (dateValue) => {
     if (!dateValue) return 'N/A'
@@ -32,7 +32,7 @@ const formatDate = (dateValue) => {
     return date.toLocaleDateString('en-GB')
 }
 
-const InstituteLectureRow = ({ detail, onUpdate }) => {
+const PhDSeminarRow = ({ detail, onUpdate }) => {
     const [editModal, setEditModal] = useState(false)
     const [viewModal, setViewModal] = useState(false)
     const [deleteModal, setDeleteModal] = useState(false)
@@ -47,7 +47,7 @@ const InstituteLectureRow = ({ detail, onUpdate }) => {
             <TableRow hover>
                 <TableCell>
                     <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
-                        {detail.lecture_title}
+                        {detail.seminar_type}
                     </Typography>
                 </TableCell>
                 <TableCell>{detail.lecturer_name}</TableCell>
@@ -89,24 +89,21 @@ const InstituteLectureRow = ({ detail, onUpdate }) => {
                 open={deleteModal} 
                 handleClose={() => setDeleteModal(false)} 
                 id={detail.id} 
-                type="institute_lecture"
+                type="phd_seminar"
                 refresh={onUpdate} 
             />
             
-            <ViewDetailsModal 
+            <PhDSeminarPreview
                 open={viewModal} 
                 handleClose={() => setViewModal(false)} 
-                detail={{
-                    title: detail.lecture_title,
-                    ...detail
-                }} 
+                seminar={detail}
             />
         </>
     )
 }
 
-export default function DisplayInstituteLectures() {
-    const [instituteLectures, setInstituteLectures] = useState([])
+export default function DisplayPhDSeminars() {
+    const [phdSeminars, setPhDSeminars] = useState([])
     const [page, setPage] = useState(0)
     const [rowsPerPage, setRowsPerPage] = useState(10)
     const [total, setTotal] = useState(0)
@@ -115,14 +112,14 @@ export default function DisplayInstituteLectures() {
 
     const fetchLectures = async () => {
         try {
-            const res = await fetch(`/api/institute-lectures?page=${page + 1}&limit=${rowsPerPage}`)
+            const res = await fetch(`/api/phd-seminars?page=${page + 1}&limit=${rowsPerPage}`)
             const data = await res.json()
             if (data && data.data) {
-                setInstituteLectures(data.data)
+                setPhDSeminars(data.data)
                 setTotal(data.total)
             }
         } catch (error) {
-            console.error('Error fetching institute lectures:', error)
+            console.error('Error fetching PhD seminars:', error)
         }
     }
 
@@ -138,11 +135,11 @@ export default function DisplayInstituteLectures() {
         <Paper sx={{ width: '100%', overflow: 'hidden', p: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                 <Typography variant="h6" component="div">
-                    Institute Lectures
+                    PhD Seminars
                 </Typography>
                 {canAdd && (
                     <Button variant="contained" color="primary" onClick={() => setAddModal(true)} sx={{ backgroundColor: '#830001', '&:hover': { backgroundColor: '#9a0000' }}}>
-                        Add Institute Lecture
+                        Add PhD Seminar
                     </Button>
                 )}
             </Box>
@@ -151,7 +148,7 @@ export default function DisplayInstituteLectures() {
                 <Table stickyHeader>
                     <TableHead>
                         <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Lecture Title</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Type of Seminar</TableCell>
                             <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Lecturer Name</TableCell>
                             <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Date & Time</TableCell>
                             <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Venue</TableCell>
@@ -159,17 +156,17 @@ export default function DisplayInstituteLectures() {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {instituteLectures.map((lecture) => (
-                            <InstituteLectureRow 
+                        {phdSeminars.map((lecture) => (
+                            <PhDSeminarRow 
                                 key={lecture.id} 
                                 detail={lecture} 
                                 onUpdate={fetchLectures} 
                             />
                         ))}
-                        {instituteLectures.length === 0 && (
+                        {phdSeminars.length === 0 && (
                             <TableRow>
                                 <TableCell colSpan={5} align="center">
-                                    No institute lectures found.
+                                    No PhD seminars found.
                                 </TableCell>
                             </TableRow>
                         )}

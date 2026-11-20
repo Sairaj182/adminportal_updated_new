@@ -157,8 +157,29 @@ export async function POST(request) {
       return NextResponse.json(result)
     }
 
+    if (type === 'phd_seminar') {
+      const canDeletePhDSeminar =
+        session.user.role === 'SUPER_ADMIN' ||
+        session.user.role === 'DEPT_ADMIN' ||
+        session.user.role === 'ACADEMIC_ADMIN';
+
+      if (!canDeletePhDSeminar) {
+        return NextResponse.json(
+          { message: 'Not authorized to delete PhD seminars' },
+          { status: 403 }
+        );
+      }
+
+      const result = await query(
+        `DELETE FROM phd_seminars WHERE id = ?`,
+        [params.id]
+      );
+      
+      return NextResponse.json(result);
+    }
+
     if (type === 'guest_lecture') {
-      const canDeleteGuestLecture = 
+      const canDeleteGuestLecture =
         session.user.role === 'SUPER_ADMIN' ||
         session.user.role === 'DEPT_ADMIN' ||
         session.user.role === 'ACADEMIC_ADMIN';
@@ -172,27 +193,6 @@ export async function POST(request) {
 
       const result = await query(
         `DELETE FROM guest_lectures WHERE id = ?`,
-        [params.id]
-      );
-      
-      return NextResponse.json(result);
-    }
-
-    if (type === 'institute_lecture') {
-      const canDeleteInstituteLecture = 
-        session.user.role === 'SUPER_ADMIN' ||
-        session.user.role === 'DEPT_ADMIN' ||
-        session.user.role === 'ACADEMIC_ADMIN';
-
-      if (!canDeleteInstituteLecture) {
-        return NextResponse.json(
-          { message: 'Not authorized to delete institute lectures' },
-          { status: 403 }
-        );
-      }
-
-      const result = await query(
-        `DELETE FROM institute_lectures WHERE id = ?`,
         [params.id]
       );
       

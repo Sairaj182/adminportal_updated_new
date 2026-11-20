@@ -182,34 +182,82 @@ export async function POST(request) {
       return NextResponse.json(noticeResult)
     }
 
-    if (type === 'guest_lecture') {
-      const canCreateGuestLecture = 
+    if (type === 'phd_seminar') {
+      const canCreatePhDSeminar =
         session.user.role === 'SUPER_ADMIN' ||
         session.user.role === 'DEPT_ADMIN' ||
         session.user.role === 'ACADEMIC_ADMIN';
 
-      if (!canCreateGuestLecture) {
+      if (!canCreatePhDSeminar) {
         return NextResponse.json(
-          { message: 'Not authorized to create guest lectures' },
+          { message: 'Not authorized to create PhD seminars' },
           { status: 403 }
         );
       }
 
-      const guestLectureResult = await query(
-        `INSERT INTO guest_lectures (
-          id, seminar_name, lecturer_name, lecturer_photo, description, 
-          supervisor_email, venue, subject, date, time, abstract, 
+      const seminarTypes = [
+        'Ph.D. Viva Voce Examination',
+        'Ph.D. Pre-Synopsis Open Seminar'
+      ];
+      if (!seminarTypes.includes(params.data.seminar_type)) {
+        return NextResponse.json(
+          { message: 'Select a valid PhD seminar type' },
+          { status: 400 }
+        );
+      }
+
+      const supervisorEmail = params.data.supervisor_email?.trim() || '';
+      const supervisorOther = params.data.supervisor_other?.trim() || '';
+      const supervisorOtherEmail = params.data.supervisor_other_email?.trim() || '';
+      const coSupervisorEmail = params.data.co_supervisor_email?.trim() || '';
+      const coSupervisorOther = params.data.co_supervisor_other?.trim() || '';
+      const coSupervisorOtherEmail = params.data.co_supervisor_other_email?.trim() || '';
+      if (
+        (!supervisorEmail && (!supervisorOther || !supervisorOtherEmail)) ||
+        (supervisorEmail && (supervisorOther || supervisorOtherEmail)) ||
+        (!coSupervisorEmail && Boolean(coSupervisorOther) !== Boolean(coSupervisorOtherEmail)) ||
+        (coSupervisorEmail && (coSupervisorOther || coSupervisorOtherEmail))
+      ) {
+        return NextResponse.json(
+          { message: 'Provide a supervisor and email when using Other. Choose either faculty or Other for each supervisor.' },
+          { status: 400 }
+        );
+      }
+
+      for (const facultyEmail of [supervisorEmail, coSupervisorEmail].filter(Boolean)) {
+        const supervisor = await query(
+          'SELECT email FROM user WHERE email = ? AND role = ? AND is_deleted = 0 LIMIT 1',
+          [facultyEmail, ROLES.FACULTY]
+        );
+        if (supervisor.length === 0) {
+          return NextResponse.json(
+            { message: 'Selected supervisors must be existing faculty members' },
+            { status: 400 }
+          );
+        }
+      }
+
+      const phdSeminarResult = await query(
+        `INSERT INTO phd_seminars (
+          id, seminar_type, lecturer_name, lecturer_photo, description,
+          supervisor_email, supervisor_other, supervisor_other_email,
+          co_supervisor_email, co_supervisor_other, co_supervisor_other_email,
+          venue, date, time, abstract,
           email, updatedBy, updatedAt, timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           params.data.id,
-          params.data.seminar_name,
+          params.data.seminar_type,
           params.data.lecturer_name,
           params.data.lecturer_photo || null,
           params.data.description || null,
-          params.data.supervisor_email || null,
+          supervisorEmail || null,
+          supervisorOther || null,
+          supervisorOtherEmail || null,
+          coSupervisorEmail || null,
+          coSupervisorOther || null,
+          coSupervisorOtherEmail || null,
           params.data.venue || null,
-          params.data.subject || null,
           params.data.date || null,
           params.data.time || null,
           params.data.abstract || null,
@@ -220,31 +268,40 @@ export async function POST(request) {
         ]
       );
       
-      return NextResponse.json(guestLectureResult);
+      console.log("DEBUG: Created phd seminar",phdSeminarResult);
+      return NextResponse.json(phdSeminarResult);
     }
 
-    if (type === 'institute_lecture') {
-      const canCreateInstituteLecture = 
+    if (type === 'guest_lecture') {
+      const canCreateGuestLecture =
         session.user.role === 'SUPER_ADMIN' ||
         session.user.role === 'DEPT_ADMIN' ||
         session.user.role === 'ACADEMIC_ADMIN';
 
-      if (!canCreateInstituteLecture) {
+      if (!canCreateGuestLecture) {
         return NextResponse.json(
-          { message: 'Not authorized to create institute lectures' },
+          { message: 'Not authorized to create Guest lectures' },
           { status: 403 }
         );
       }
 
-      const instituteLectureResult = await query(
-        `INSERT INTO institute_lectures (
-          id, category, lecturer_name, lecture_title, venue, date, time, 
+      if (params.data.category !== 'Institute Seminar') {
+        return NextResponse.json(
+          { message: 'Select a valid guest lecture category' },
+          { status: 400 }
+        );
+      }
+
+      const guestLectureResult = await query(
+        `INSERT INTO guest_lectures (
+          id, category, lecturer_name, lecturer_email, lecture_title, venue, date, time,
           biography, lecturer_photo, email, updatedBy, updatedAt, timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           params.data.id,
-          params.data.category || 'Institute Lecture',
+          params.data.category,
           params.data.lecturer_name,
+          params.data.lecturer_email?.trim() || null,
           params.data.lecture_title,
           params.data.venue || null,
           params.data.date || null,
@@ -258,7 +315,7 @@ export async function POST(request) {
         ]
       );
       
-      return NextResponse.json(instituteLectureResult);
+      return NextResponse.json(guestLectureResult);
     }
 
     // Super Admin only access
@@ -1030,4 +1087,4 @@ case 'consultancy_projects': {
       { status: 500 }
     )
   }
-} 
+}

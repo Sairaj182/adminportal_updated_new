@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { query, parallel, batchQuery } from '@/lib/db'
 import { depList, facultyTables } from '@/lib/const'
+import { ROLES } from '@/lib/roles'
 import { getCachedUserProfile, cacheUserProfile, refreshProfileCacheTTL } from '@/lib/profileCache';
 
 const allowedOrigins = [
@@ -32,6 +33,40 @@ export async function GET(request) {
     const limit = Math.min(50, parseInt(searchParams.get('limit')) || 20);
     const offset = (page - 1) * limit;
     const type = searchParams.get('type')
+
+    // Basic user lookup for selectors: names/emails only, with one or more roles.
+    // GET /api/faculty?type=basic&role=SUPER_ADMIN,faculty
+    if (type === 'basic') {
+      const roleParams = searchParams.getAll('role')
+      const roleNames = (roleParams.length ? roleParams : ['faculty'])
+        .flatMap(value => value.split(','))
+        .map(value => value.trim().toUpperCase())
+      const roleIds = roleNames.map(role => {
+        return Object.prototype.hasOwnProperty.call(ROLES, role)
+          ? ROLES[role]
+          : null
+      })
+
+      if (roleIds.some(roleId => roleId === null)) {
+        return NextResponse.json(
+          { message: 'Invalid role. Use comma-separated role names from the roles list.' },
+          { status: 400 }
+        )
+      }
+
+      const uniqueRoleIds = [...new Set(roleIds)]
+      const placeholders = uniqueRoleIds.map(() => '?').join(', ')
+      const data = await query(
+        `SELECT u.name,
+                NULLIF(NULLIF(TRIM(u.email), ''), '0') AS email
+         FROM user u
+         WHERE u.is_deleted = 0 AND u.role IN (${placeholders})
+         ORDER BY u.name ASC, u.email ASC`,
+        uniqueRoleIds
+      )
+      return NextResponse.json({ data })
+    }
+
     let results = []
     let total = 0
 
@@ -484,4 +519,4 @@ export async function OPTIONS(request) {
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   })
-} 
+}

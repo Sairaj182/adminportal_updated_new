@@ -1,58 +1,68 @@
 import React, { useState, useEffect } from 'react'
 import { 
     Button, Dialog, DialogActions, DialogContent, DialogTitle,
-    TextField, Grid, Typography, Box, FormControl, InputLabel, Select, MenuItem, CircularProgress
+    TextField, Grid, Typography, FormControl, InputLabel, Select, MenuItem
 } from '@mui/material'
-import { useSession } from 'next-auth/react'
+
+const GUEST_LECTURE_CATEGORY = 'Institute Seminar'
+const MAX_LECTURER_PHOTO_SIZE = 1024 * 1024
 
 export const AddForm = ({ handleClose, open, refresh }) => {
-    const { data: session } = useSession()
     const [submitting, setSubmitting] = useState(false)
-    const [faculties, setFaculties] = useState([])
-    const [loadingFaculties, setLoadingFaculties] = useState(false)
     
     const [content, setContent] = useState({
-        seminar_name: '',
+        lecture_title: '',
         lecturer_name: '',
-        description: '',
-        supervisor_email: '',
+        lecturer_email: '',
+        category: GUEST_LECTURE_CATEGORY,
         venue: '',
-        subject: '',
         date: '',
         time: '',
-        abstract: '',
+        biography: '',
     })
 
     const [photoFile, setPhotoFile] = useState(null)
+    const [photoError, setPhotoError] = useState('')
 
     useEffect(() => {
         if (open) {
-            fetchFaculties()
+            setContent({
+                lecture_title: '',
+                lecturer_name: '',
+                lecturer_email: '',
+                category: GUEST_LECTURE_CATEGORY,
+                venue: '',
+                date: '',
+                time: '',
+                biography: '',
+            })
+            setPhotoFile(null)
+            setPhotoError('')
         }
     }, [open])
-
-    const fetchFaculties = async () => {
-        setLoadingFaculties(true)
-        try {
-            // Fetch all faculties (assuming a reasonable number, or we might need a search input for scale)
-            const res = await fetch('/api/faculty?type=all&limit=1000')
-            const data = await res.json()
-            if (data && data.data) {
-                setFaculties(data.data)
-            }
-        } catch (error) {
-            console.error('Error fetching faculties:', error)
-        } finally {
-            setLoadingFaculties(false)
-        }
-    }
 
     const handleChange = (e) => {
         setContent({ ...content, [e.target.name]: e.target.value })
     }
 
+    const handlePhotoChange = (e) => {
+        const file = e.target.files?.[0] || null
+        if (file && file.size > MAX_LECTURER_PHOTO_SIZE) {
+            e.target.value = ''
+            setPhotoFile(null)
+            setPhotoError('Lecturer photo must be 1 MB or smaller.')
+            return
+        }
+        setPhotoError('')
+        setPhotoFile(file)
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault()
+        if (photoFile && photoFile.size > MAX_LECTURER_PHOTO_SIZE) {
+            setPhotoError('Lecturer photo must be 1 MB or smaller.')
+            return
+        }
         setSubmitting(true)
 
         try {
@@ -112,10 +122,13 @@ export const AddForm = ({ handleClose, open, refresh }) => {
                 <DialogContent sx={{ mt: 2, maxHeight: '70vh', overflowY: 'auto' }}>
                     <Grid container spacing={3} sx={{ mt: 1 }}>
                         <Grid item xs={12}>
-                            <TextField fullWidth label="Seminar Name" name="seminar_name" required value={content.seminar_name} onChange={handleChange} />
+                            <TextField fullWidth label="Lecture Title" name="lecture_title" required value={content.lecture_title} onChange={handleChange} />
                         </Grid>
                         <Grid item xs={12} sm={6}>
                             <TextField fullWidth label="Lecturer Name" name="lecturer_name" required value={content.lecturer_name} onChange={handleChange} />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth type="email" label="Lecturer Email (Optional)" name="lecturer_email" value={content.lecturer_email} onChange={handleChange} />
                         </Grid>
                         <Grid item xs={12} sm={6}>
                             <FormControl fullWidth>
@@ -123,58 +136,35 @@ export const AddForm = ({ handleClose, open, refresh }) => {
                                 <input 
                                     type="file" 
                                     accept="image/*" 
-                                    onChange={(e) => setPhotoFile(e.target.files[0])} 
+                                    onChange={handlePhotoChange}
                                     style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
                                 />
+                                {photoError && <Typography variant="caption" color="error">{photoError}</Typography>}
                             </FormControl>
                         </Grid>
                         
-                        <Grid item xs={12}>
-                            <TextField fullWidth label="Description" name="description" multiline rows={3} value={content.description} onChange={handleChange} />
-                        </Grid>
-
                         <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth>
-                                <InputLabel id="supervisor-label">Supervisor (Faculty)</InputLabel>
-                                <Select
-                                    labelId="supervisor-label"
-                                    name="supervisor_email"
-                                    value={content.supervisor_email}
-                                    onChange={handleChange}
-                                    label="Supervisor (Faculty)"
-                                >
-                                    <MenuItem value="">
-                                        <em>None</em>
-                                    </MenuItem>
-                                    {loadingFaculties ? (
-                                        <MenuItem disabled><CircularProgress size={20} /> Loading...</MenuItem>
-                                    ) : (
-                                        faculties.map((faculty) => (
-                                            <MenuItem key={faculty.email} value={faculty.email}>
-                                                {faculty.name} ({faculty.department})
-                                            </MenuItem>
-                                        ))
-                                    )}
+                            <FormControl fullWidth required>
+                                <InputLabel id="guest-lecture-category-label">Lecture Category</InputLabel>
+                                <Select labelId="guest-lecture-category-label" name="category" value={content.category} onChange={handleChange} label="Lecture Category">
+                                    <MenuItem value={GUEST_LECTURE_CATEGORY}>{GUEST_LECTURE_CATEGORY}</MenuItem>
                                 </Select>
                             </FormControl>
                         </Grid>
-                        
-                        <Grid item xs={12} sm={6}>
-                            <TextField fullWidth label="Subject" name="subject" value={content.subject} onChange={handleChange} />
-                        </Grid>
 
-                        <Grid item xs={12} sm={4}>
-                            <TextField fullWidth type="date" label="Date" name="date" InputLabelProps={{ shrink: true }} value={content.date} onChange={handleChange} />
-                        </Grid>
-                        <Grid item xs={12} sm={4}>
-                            <TextField fullWidth type="time" label="Time" name="time" InputLabelProps={{ shrink: true }} value={content.time} onChange={handleChange} />
-                        </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid item xs={12} sm={6}>
                             <TextField fullWidth label="Venue" name="venue" value={content.venue} onChange={handleChange} />
                         </Grid>
 
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth type="date" label="Date" name="date" InputLabelProps={{ shrink: true }} value={content.date} onChange={handleChange} />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth type="time" label="Time" name="time" InputLabelProps={{ shrink: true }} value={content.time} onChange={handleChange} />
+                        </Grid>
+
                         <Grid item xs={12}>
-                            <TextField fullWidth label="Abstract" name="abstract" multiline rows={4} value={content.abstract} onChange={handleChange} />
+                            <TextField fullWidth label="Biography" name="biography" multiline rows={4} value={content.biography} onChange={handleChange} />
                         </Grid>
                     </Grid>
                 </DialogContent>

@@ -10,13 +10,7 @@ export async function GET(request) {
     const offset = (page - 1) * limit;
 
     if (idParam) {
-      const rows = await query(
-        `SELECT gl.*, supervisor.name AS supervisor_name
-         FROM guest_lectures gl
-         LEFT JOIN user supervisor ON supervisor.email = gl.supervisor_email
-         WHERE gl.id = ? LIMIT 1`,
-        [idParam]
-      );
+      const rows = await query('SELECT * FROM guest_lectures WHERE id = ? LIMIT 1', [idParam]);
       if (rows.length > 0) {
         return NextResponse.json(rows[0]);
       }
@@ -27,10 +21,7 @@ export async function GET(request) {
     const total = Number(countRes[0].count);
 
     const results = await query(
-      `SELECT gl.*, supervisor.name AS supervisor_name
-       FROM guest_lectures gl
-       LEFT JOIN user supervisor ON supervisor.email = gl.supervisor_email
-       ORDER BY gl.timestamp DESC LIMIT ${limit} OFFSET ${offset}`
+      `SELECT * FROM guest_lectures ORDER BY timestamp DESC LIMIT ${limit} OFFSET ${offset}`
     );
 
     return NextResponse.json({

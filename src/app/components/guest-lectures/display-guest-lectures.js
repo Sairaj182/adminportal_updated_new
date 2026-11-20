@@ -22,8 +22,8 @@ import {
 import { useSession } from 'next-auth/react'
 import { AddForm } from './guest-lecture-props/add-form'
 import { EditForm } from './guest-lecture-props/edit-form'
+import { GuestLecturePreview } from './guest-lecture-props/guest-lecture-preview'
 import { ConfirmDelete } from '../events-props/confirm-delete'
-import ViewDetailsModal from '../view-details-modal'
 
 const formatDate = (dateValue) => {
     if (!dateValue) return 'N/A'
@@ -47,7 +47,7 @@ const GuestLectureRow = ({ detail, onUpdate }) => {
             <TableRow hover>
                 <TableCell>
                     <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
-                        {detail.seminar_name}
+                        {detail.lecture_title}
                     </Typography>
                 </TableCell>
                 <TableCell>{detail.lecturer_name}</TableCell>
@@ -93,14 +93,10 @@ const GuestLectureRow = ({ detail, onUpdate }) => {
                 refresh={onUpdate} 
             />
             
-            {/* Using a simple generic view modal if available, otherwise just rely on edit for now */}
-            <ViewDetailsModal 
+            <GuestLecturePreview
                 open={viewModal} 
                 handleClose={() => setViewModal(false)} 
-                detail={{
-                    title: detail.seminar_name,
-                    ...detail
-                }} 
+                lecture={detail}
             />
         </>
     )
@@ -152,7 +148,7 @@ export default function DisplayGuestLectures() {
                 <Table stickyHeader>
                     <TableHead>
                         <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Seminar Name</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Lecture Title</TableCell>
                             <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Lecturer Name</TableCell>
                             <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Date & Time</TableCell>
                             <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Venue</TableCell>

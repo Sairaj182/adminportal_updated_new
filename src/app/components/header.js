@@ -126,7 +126,8 @@ const StyledHeader = styled.header`
 const menuItems = {
   [ROLES.SUPER_ADMIN]: [
     { text: 'Profile', href: '/', icon: <AccountCircleIcon /> },
-    { text: 'Events', href: '/events', icon: <EventIcon /> },
+    { text: 'Workshops & Conferences', href: '/events', icon: <EventIcon /> },
+    { text: 'Banner Events', href: '/banner-events', icon: <EventIcon /> },
     { text: 'Notice', href: '/notice', icon: <NotificationsIcon /> },
     { text: 'News', href: '/news', icon: <NewspaperIcon /> },
     { text: 'Innovation', href: '/innovation', icon: <LightbulbIcon /> },
@@ -136,8 +137,8 @@ const menuItems = {
     { text: 'Role Management', href: '/role-management', icon: <AdminPanelSettingsIcon /> },
     { text: 'Club Management', href: '/club-management', icon: <GroupsIcon /> },
     { text: 'File Management', href: '/file-management', icon: <FolderIcon /> },
-    { text: 'Guest Lectures', href: '/guest-lectures', icon: <RecordVoiceOverIcon /> },
-    { text: 'Institute Lectures', href: '/institute-lectures', icon: <RecordVoiceOverIcon /> }
+    { text: 'PhD Seminars', href: '/phd-seminars', icon: <RecordVoiceOverIcon /> },
+    { text: 'Guest Lectures', href: '/guest-lectures', icon: <RecordVoiceOverIcon /> }
   ],
   [ROLES.CLUB_ADMIN]: [
     { text: 'Profile', href: '/', icon: <AccountCircleIcon /> },
@@ -147,15 +148,15 @@ const menuItems = {
     { text: 'Profile', href: '/', icon: <AccountCircleIcon /> },
     { text: 'Notice', href: '/notice', icon: <NotificationsIcon /> },
     { text: 'Student Management', href: '/student-management', icon: <SchoolIcon /> },
-    { text: 'Guest Lectures', href: '/guest-lectures', icon: <RecordVoiceOverIcon /> },
-    { text: 'Institute Lectures', href: '/institute-lectures', icon: <RecordVoiceOverIcon /> }
+    { text: 'PhD Seminars', href: '/phd-seminars', icon: <RecordVoiceOverIcon /> },
+    { text: 'Guest Lectures', href: '/guest-lectures', icon: <RecordVoiceOverIcon /> }
   ],
   [ROLES.DEPT_ADMIN]: [
     { text: 'Profile', href: '/', icon: <AccountCircleIcon /> },
     { text: 'Notice', href: '/notice', icon: <NotificationsIcon /> },
     { text: 'Student Management', href: '/student-management', icon: <SchoolIcon /> },
-    { text: 'Guest Lectures', href: '/guest-lectures', icon: <RecordVoiceOverIcon /> },
-    { text: 'Institute Lectures', href: '/institute-lectures', icon: <RecordVoiceOverIcon /> }
+    { text: 'PhD Seminars', href: '/phd-seminars', icon: <RecordVoiceOverIcon /> },
+    { text: 'Guest Lectures', href: '/guest-lectures', icon: <RecordVoiceOverIcon /> }
   ],
   [ROLES.FACULTY]: [
     { text: 'Profile', href: '/', icon: <AccountCircleIcon /> }

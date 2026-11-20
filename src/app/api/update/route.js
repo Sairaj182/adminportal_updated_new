@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { query } from '@/lib/db'
+import { ROLES } from '@/lib/roles'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/authOptions'
 import { invalidateProfileIfNeeded, invalidateUserProfile } from '@/lib/profileCache'
@@ -303,28 +304,81 @@ export async function PUT(request) {
       return NextResponse.json(result)
     }
 
-    if (type === 'guest_lecture') {
-      const canUpdateGuestLecture = 
+    if (type === 'phd_seminar') {
+      const canUpdatePhDSeminar =
         session.user.role === 'SUPER_ADMIN' ||
         session.user.role === 'DEPT_ADMIN' ||
         session.user.role === 'ACADEMIC_ADMIN';
 
-      if (!canUpdateGuestLecture) {
+      if (!canUpdatePhDSeminar) {
         return NextResponse.json(
-          { message: 'Not authorized to update guest lectures' },
+          { message: 'Not authorized to update PhD seminars' },
           { status: 403 }
         );
       }
 
+      const seminarTypes = [
+        'Ph.D. Viva Voce Examination',
+        'Ph.D. Pre-Synopsis Open Seminar'
+      ];
+      const seminarType = params.data.seminar_type?.trim() || '';
+      if (!seminarTypes.includes(seminarType)) {
+        const existing = await query(
+          'SELECT seminar_type FROM phd_seminars WHERE id = ? LIMIT 1',
+          [params.data.id]
+        );
+        if (!existing.length || existing[0].seminar_type !== seminarType) {
+          return NextResponse.json(
+            { message: 'Select a valid PhD seminar type' },
+            { status: 400 }
+          );
+        }
+      }
+
+      const supervisorEmail = params.data.supervisor_email?.trim() || '';
+      const supervisorOther = params.data.supervisor_other?.trim() || '';
+      const supervisorOtherEmail = params.data.supervisor_other_email?.trim() || '';
+      const coSupervisorEmail = params.data.co_supervisor_email?.trim() || '';
+      const coSupervisorOther = params.data.co_supervisor_other?.trim() || '';
+      const coSupervisorOtherEmail = params.data.co_supervisor_other_email?.trim() || '';
+      if (
+        (!supervisorEmail && (!supervisorOther || !supervisorOtherEmail)) ||
+        (supervisorEmail && (supervisorOther || supervisorOtherEmail)) ||
+        (!coSupervisorEmail && Boolean(coSupervisorOther) !== Boolean(coSupervisorOtherEmail)) ||
+        (coSupervisorEmail && (coSupervisorOther || coSupervisorOtherEmail))
+      ) {
+        return NextResponse.json(
+          { message: 'Provide a supervisor and email when using Other. Choose either faculty or Other for each supervisor.' },
+          { status: 400 }
+        );
+      }
+
+      for (const facultyEmail of [supervisorEmail, coSupervisorEmail].filter(Boolean)) {
+        const supervisor = await query(
+          'SELECT email FROM user WHERE email = ? AND role = ? AND is_deleted = 0 LIMIT 1',
+          [facultyEmail, ROLES.FACULTY]
+        );
+        if (supervisor.length === 0) {
+          return NextResponse.json(
+            { message: 'Selected supervisors must be existing faculty members' },
+            { status: 400 }
+          );
+        }
+      }
+
       const result = await query(
-        `UPDATE guest_lectures SET 
-          seminar_name = ?,
+        `UPDATE phd_seminars SET
+          seminar_type = ?,
           lecturer_name = ?,
           lecturer_photo = ?,
           description = ?,
           supervisor_email = ?,
+          supervisor_other = ?,
+          supervisor_other_email = ?,
+          co_supervisor_email = ?,
+          co_supervisor_other = ?,
+          co_supervisor_other_email = ?,
           venue = ?,
-          subject = ?,
           date = ?,
           time = ?,
           abstract = ?,
@@ -332,13 +386,17 @@ export async function PUT(request) {
           updatedAt = ?
         WHERE id = ?`,
         [
-          params.data.seminar_name,
+          seminarType,
           params.data.lecturer_name,
           params.data.lecturer_photo || null,
           params.data.description || null,
-          params.data.supervisor_email || null,
+          supervisorEmail || null,
+          supervisorOther || null,
+          supervisorOtherEmail || null,
+          coSupervisorEmail || null,
+          coSupervisorOther || null,
+          coSupervisorOtherEmail || null,
           params.data.venue || null,
-          params.data.subject || null,
           params.data.date || null,
           params.data.time || null,
           params.data.abstract || null,
@@ -351,23 +409,31 @@ export async function PUT(request) {
       return NextResponse.json(result);
     }
 
-    if (type === 'institute_lecture') {
-      const canUpdateInstituteLecture = 
+    if (type === 'guest_lecture') {
+      const canUpdateGuestLecture =
         session.user.role === 'SUPER_ADMIN' ||
         session.user.role === 'DEPT_ADMIN' ||
         session.user.role === 'ACADEMIC_ADMIN';
 
-      if (!canUpdateInstituteLecture) {
+      if (!canUpdateGuestLecture) {
         return NextResponse.json(
-          { message: 'Not authorized to update institute lectures' },
+          { message: 'Not authorized to update Guest lectures' },
           { status: 403 }
         );
       }
 
+      if (params.data.category !== 'Institute Seminar') {
+        return NextResponse.json(
+          { message: 'Select a valid guest lecture category' },
+          { status: 400 }
+        );
+      }
+
       const result = await query(
-        `UPDATE institute_lectures SET 
+        `UPDATE guest_lectures SET
           category = ?,
           lecturer_name = ?,
+          lecturer_email = ?,
           lecture_title = ?,
           venue = ?,
           date = ?,
@@ -378,8 +444,9 @@ export async function PUT(request) {
           updatedAt = ?
         WHERE id = ?`,
         [
-          params.data.category || 'Institute Lecture',
+          params.data.category,
           params.data.lecturer_name,
+          params.data.lecturer_email?.trim() || null,
           params.data.lecture_title,
           params.data.venue || null,
           params.data.date || null,

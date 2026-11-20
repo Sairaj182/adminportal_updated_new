@@ -1,4 +1,5 @@
 import GoogleProvider from 'next-auth/providers/google'
+import CredentialsProvider from 'next-auth/providers/credentials'
 import { ROLES } from '@/lib/roles'
 import { query } from '@/lib/db'
 import { getFacultySpecialPermissions } from '@/lib/specialPermissions'
@@ -16,9 +17,37 @@ export const authOptions = {
           }
         }
       }),
+      ...(process.env.DEMO_BYPASS_AUTH === 'true' ? [
+        CredentialsProvider({
+          id: 'demo',
+          name: 'Demo Superadmin',
+          credentials: {},
+          async authorize() {
+            const demoRole = process.env.DEMO_ROLE || 'SUPER_ADMIN'
+            const demoNumericRole = ROLES[demoRole] || ROLES.SUPER_ADMIN
+            return {
+              id: `demo-${demoRole.toLowerCase()}`,
+              name: demoRole === 'SUPER_ADMIN' ? 'SUPER ADMIN' : 'Sairaj',
+              email: process.env.DEMO_FACULTY_EMAIL || 'superadmin@nitp.ac.in',
+              numericRole: demoNumericRole,
+              role: demoRole,
+              department: null,
+              administration: null,
+              designation: 'SUPER ADMIN',
+              clubId: null,
+              clubLoginId: null,
+              specialPermissions: [],
+            }
+          },
+        }),
+      ] : []),
     ],
     callbacks: {
       async signIn({ user, account, profile }) {
+        if (account?.provider === 'demo' && process.env.DEMO_BYPASS_AUTH === 'true') {
+          return true
+        }
+
         try {
           const results = await query(
             `SELECT * FROM user WHERE email = ?`,
@@ -102,6 +131,15 @@ export const authOptions = {
           session.user.clubId = token.clubId ?? null
           session.user.clubLoginId = token.clubLoginId ?? null
           session.user.specialPermissions = token.specialPermissions ?? []
+        }
+        // Keep an already-issued demo cookie aligned with local demo settings
+        // when the demo identity is switched without clearing browser cookies.
+        if (process.env.DEMO_BYPASS_AUTH === 'true') {
+          const demoRole = process.env.DEMO_ROLE || 'SUPER_ADMIN'
+          session.user.email = process.env.DEMO_FACULTY_EMAIL || 'superadmin@nitp.ac.in'
+          session.user.numericRole = ROLES[demoRole] || ROLES.SUPER_ADMIN
+          session.user.role = demoRole
+          session.user.designation = demoRole === 'SUPER_ADMIN' ? 'SUPER ADMIN' : 'Faculty'
         }
         return session
       }

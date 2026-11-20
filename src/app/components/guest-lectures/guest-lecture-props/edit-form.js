@@ -1,72 +1,81 @@
 import React, { useState, useEffect } from 'react'
 import { 
     Button, Dialog, DialogActions, DialogContent, DialogTitle,
-    TextField, Grid, Typography, Box, FormControl, InputLabel, Select, MenuItem, CircularProgress
+    TextField, Grid, Typography, FormControl, Box, InputLabel, Select, MenuItem
 } from '@mui/material'
-import { useSession } from 'next-auth/react'
 
-export const EditForm = ({ handleClose, open, data, refresh }) => {
-    const { data: session } = useSession()
+const GUEST_LECTURE_CATEGORY = 'Institute Seminar'
+const MAX_LECTURER_PHOTO_SIZE = 1024 * 1024
+
+const formatDateForInput = (timestamp) => {
+    if (!timestamp) return ''
+    const d = new Date(parseInt(timestamp, 10))
+    if (isNaN(d.getTime())) return ''
+    return d.toISOString().split('T')[0]
+}
+
+export const EditForm = ({ handleClose, open, refresh, data }) => {
     const [submitting, setSubmitting] = useState(false)
-    const [faculties, setFaculties] = useState([])
-    const [loadingFaculties, setLoadingFaculties] = useState(false)
-    
     const [content, setContent] = useState({
-        seminar_name: '',
+        lecture_title: '',
         lecturer_name: '',
-        description: '',
-        supervisor_email: '',
+        lecturer_email: '',
+        category: GUEST_LECTURE_CATEGORY,
         venue: '',
-        subject: '',
         date: '',
         time: '',
-        abstract: '',
+        biography: '',
     })
 
     const [photoFile, setPhotoFile] = useState(null)
+    const [existingPhoto, setExistingPhoto] = useState(null)
+    const [photoError, setPhotoError] = useState('')
 
     useEffect(() => {
         if (open && data) {
             setContent({
-                seminar_name: data.seminar_name || '',
+                lecture_title: data.lecture_title || '',
                 lecturer_name: data.lecturer_name || '',
-                description: data.description || '',
-                supervisor_email: data.supervisor_email || '',
+                lecturer_email: data.lecturer_email || '',
+                category: data.category || GUEST_LECTURE_CATEGORY,
                 venue: data.venue || '',
-                subject: data.subject || '',
-                date: data.date ? new Date(parseInt(data.date, 10)).toISOString().split('T')[0] : '',
+                date: formatDateForInput(data.date),
                 time: data.time || '',
-                abstract: data.abstract || '',
+                biography: data.biography || '',
             })
-            fetchFaculties()
+            setExistingPhoto(data.lecturer_photo)
+            setPhotoFile(null)
+            setPhotoError('')
         }
     }, [open, data])
-
-    const fetchFaculties = async () => {
-        setLoadingFaculties(true)
-        try {
-            const res = await fetch('/api/faculty?type=all&limit=1000')
-            const facData = await res.json()
-            if (facData && facData.data) {
-                setFaculties(facData.data)
-            }
-        } catch (error) {
-            console.error('Error fetching faculties:', error)
-        } finally {
-            setLoadingFaculties(false)
-        }
-    }
 
     const handleChange = (e) => {
         setContent({ ...content, [e.target.name]: e.target.value })
     }
 
+    const handlePhotoChange = (e) => {
+        const file = e.target.files?.[0] || null
+        if (file && file.size > MAX_LECTURER_PHOTO_SIZE) {
+            e.target.value = ''
+            setPhotoFile(null)
+            setPhotoError('Lecturer photo must be 1 MB or smaller.')
+            return
+        }
+        setPhotoError('')
+        setPhotoFile(file)
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault()
+        if (photoFile && photoFile.size > MAX_LECTURER_PHOTO_SIZE) {
+            setPhotoError('Lecturer photo must be 1 MB or smaller.')
+            return
+        }
         setSubmitting(true)
 
         try {
-            let lecturer_photo = data.lecturer_photo
+            let lecturer_photo = existingPhoto
+
             if (photoFile) {
                 let fileData = new FormData()
                 fileData.append('file', photoFile)
@@ -122,76 +131,57 @@ export const EditForm = ({ handleClose, open, data, refresh }) => {
                 <DialogContent sx={{ mt: 2, maxHeight: '70vh', overflowY: 'auto' }}>
                     <Grid container spacing={3} sx={{ mt: 1 }}>
                         <Grid item xs={12}>
-                            <TextField fullWidth label="Seminar Name" name="seminar_name" required value={content.seminar_name} onChange={handleChange} />
+                            <TextField fullWidth label="Lecture Title" name="lecture_title" required value={content.lecture_title} onChange={handleChange} />
                         </Grid>
                         <Grid item xs={12} sm={6}>
                             <TextField fullWidth label="Lecturer Name" name="lecturer_name" required value={content.lecturer_name} onChange={handleChange} />
                         </Grid>
                         <Grid item xs={12} sm={6}>
+                            <TextField fullWidth type="email" label="Lecturer Email (Optional)" name="lecturer_email" value={content.lecturer_email} onChange={handleChange} />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
                             <FormControl fullWidth>
-                                <Typography variant="caption" sx={{ mb: 1, color: 'text.secondary' }}>
-                                    Lecturer Photo (Max 1MB) {data?.lecturer_photo ? '- Leave empty to keep existing' : ''}
-                                </Typography>
+                                <Typography variant="caption" sx={{ mb: 1, color: 'text.secondary' }}>Lecturer Photo (Max 1MB)</Typography>
                                 <input 
                                     type="file" 
                                     accept="image/*" 
-                                    onChange={(e) => setPhotoFile(e.target.files[0])} 
+                                    onChange={handlePhotoChange}
                                     style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
                                 />
-                                {data?.lecturer_photo && !photoFile && (
-                                    <Box sx={{ mt: 1 }}>
-                                        <img src={data.lecturer_photo} alt="Current" style={{ maxHeight: '50px' }} />
+                                {photoError && <Typography variant="caption" color="error">{photoError}</Typography>}
+                                {existingPhoto && !photoFile && (
+                                    <Box mt={1}>
+                                        <Typography variant="caption" color="primary">Current photo is uploaded</Typography>
                                     </Box>
                                 )}
                             </FormControl>
                         </Grid>
                         
-                        <Grid item xs={12}>
-                            <TextField fullWidth label="Description" name="description" multiline rows={3} value={content.description} onChange={handleChange} />
-                        </Grid>
-
                         <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth>
-                                <InputLabel id="supervisor-label-edit">Supervisor (Faculty)</InputLabel>
-                                <Select
-                                    labelId="supervisor-label-edit"
-                                    name="supervisor_email"
-                                    value={content.supervisor_email}
-                                    onChange={handleChange}
-                                    label="Supervisor (Faculty)"
-                                >
-                                    <MenuItem value="">
-                                        <em>None</em>
-                                    </MenuItem>
-                                    {loadingFaculties ? (
-                                        <MenuItem disabled><CircularProgress size={20} /> Loading...</MenuItem>
-                                    ) : (
-                                        faculties.map((faculty) => (
-                                            <MenuItem key={faculty.email} value={faculty.email}>
-                                                {faculty.name} ({faculty.department})
-                                            </MenuItem>
-                                        ))
+                            <FormControl fullWidth required>
+                                <InputLabel id="guest-lecture-category-label-edit">Lecture Category</InputLabel>
+                                <Select labelId="guest-lecture-category-label-edit" name="category" value={content.category} onChange={handleChange} label="Lecture Category">
+                                    {content.category && content.category !== GUEST_LECTURE_CATEGORY && (
+                                        <MenuItem value={content.category}>{content.category} (existing value)</MenuItem>
                                     )}
+                                    <MenuItem value={GUEST_LECTURE_CATEGORY}>{GUEST_LECTURE_CATEGORY}</MenuItem>
                                 </Select>
                             </FormControl>
                         </Grid>
-                        
-                        <Grid item xs={12} sm={6}>
-                            <TextField fullWidth label="Subject" name="subject" value={content.subject} onChange={handleChange} />
-                        </Grid>
 
-                        <Grid item xs={12} sm={4}>
-                            <TextField fullWidth type="date" label="Date" name="date" InputLabelProps={{ shrink: true }} value={content.date} onChange={handleChange} />
-                        </Grid>
-                        <Grid item xs={12} sm={4}>
-                            <TextField fullWidth type="time" label="Time" name="time" InputLabelProps={{ shrink: true }} value={content.time} onChange={handleChange} />
-                        </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid item xs={12} sm={6}>
                             <TextField fullWidth label="Venue" name="venue" value={content.venue} onChange={handleChange} />
                         </Grid>
 
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth type="date" label="Date" name="date" InputLabelProps={{ shrink: true }} value={content.date} onChange={handleChange} />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth type="time" label="Time" name="time" InputLabelProps={{ shrink: true }} value={content.time} onChange={handleChange} />
+                        </Grid>
+
                         <Grid item xs={12}>
-                            <TextField fullWidth label="Abstract" name="abstract" multiline rows={4} value={content.abstract} onChange={handleChange} />
+                            <TextField fullWidth label="Biography" name="biography" multiline rows={4} value={content.biography} onChange={handleChange} />
                         </Grid>
                     </Grid>
                 </DialogContent>

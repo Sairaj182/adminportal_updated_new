@@ -5,25 +5,17 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page')) || 1);
-    const limit = Math.min(50, parseInt(searchParams.get('limit')) || 20);
+    const limit = Math.max(1, Math.min(50, parseInt(searchParams.get('limit')) || 20));
     const offset = (page - 1) * limit;
 
-    // Get total count
-    const countRes = await query(`SELECT COUNT(*) as count FROM workshops_conferences`);
+    const now = Date.now();
+    const where = "FROM events WHERE type = 'general' AND openDate < ? AND closeDate > ?";
+    const countRes = await query(`SELECT COUNT(*) AS count ${where}`, [now, now]);
     const total = Number(countRes[0].count);
-
-    // Fetch workshops with user details
     const results = await query(`
-      SELECT 
-        wc.*, 
-        u.name as faculty_name, 
-        u.department,
-        u.image as faculty_image
-      FROM workshops_conferences wc
-      LEFT JOIN user u ON wc.email = u.email
-      ORDER BY wc.start_date DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `);
+      SELECT id, title, venue, eventStartDate, eventEndDate, doclink, event_link, attachments
+      ${where} ORDER BY updatedAt DESC, id DESC LIMIT ${limit} OFFSET ${offset}
+    `, [now, now]);
 
     return NextResponse.json({
       page,

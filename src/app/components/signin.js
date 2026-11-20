@@ -3,6 +3,7 @@
 import styled from 'styled-components'
 import Image from 'next/image'
 import { signIn } from 'next-auth/react'
+import { useEffect, useState } from 'react'
 import { Button, Paper, Typography, Box } from '@mui/material'
 import { Google as GoogleIcon } from '@mui/icons-material'
 
@@ -62,6 +63,28 @@ const StyledButton = styled(Button)`
 `
 
 export default function Sign() {
+  const [demoError, setDemoError] = useState('')
+
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_DEMO_BYPASS_AUTH !== 'true') return
+
+    signIn('demo', { redirect: false, callbackUrl: '/' }).then((result) => {
+      if (result?.error) setDemoError(result.error)
+      else window.location.reload()
+    })
+  }, [])
+
+  if (process.env.NEXT_PUBLIC_DEMO_BYPASS_AUTH === 'true') {
+    return (
+      <SigninContainer>
+        <SigninCard elevation={0}>
+          <Typography variant="h6">Opening super admin DEMO session…</Typography>
+          {demoError && <Typography color="error">{demoError}</Typography>}
+        </SigninCard>
+      </SigninContainer>
+    )
+  }
+
   return (
     <SigninContainer>
       <SigninCard elevation={0}>
